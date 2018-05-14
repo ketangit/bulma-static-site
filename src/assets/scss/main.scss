@@ -1,0 +1,9 @@
+// @import "_bulma";
+@import "node_modules/bulma/bulma";
+
+body {
+  background-color: #fff;
+  div {
+    border: 0px dotted red;
+  }
+}

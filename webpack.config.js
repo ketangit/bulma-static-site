@@ -1,110 +1,90 @@
-var path = require('path');
-var glob = require('glob');
-var webpack = require('webpack');
-var CleanWebpackPlugin = require('clean-webpack-plugin');
-var HtmlWebpackPlugin = require('html-webpack-plugin');
-var ExtractTextPlugin = require('extract-text-webpack-plugin');
-var PurifyCSSPlugin = require('purifycss-webpack');
-var FaviconsWebpackPlugin = require('favicons-webpack-plugin');
+const path = require('path'),
+  webpack = require('webpack'),
+  CleanWebpackPlugin = require('clean-webpack-plugin'),
+  HtmlWebpackPlugin = require('html-webpack-plugin'),
+  ExtractTextPlugin = require('extract-text-webpack-plugin');
 
-var folderDistribute = 'dist';
-var switchMinify = false;
-var useSSL = false;
+const extractPlugin = new ExtractTextPlugin({ filename: 'styles.css' });
 
-var cssConfigEnvironments = {
-  dev: ['style-loader', 'css-loader?sourceMap', 'sass-loader'],
-  prod: ExtractTextPlugin.extract({
-    fallback: 'style-loader',
-    use: ['css-loader', 'sass-loader']
-  })
-};
+const config = {
+  // absolute path for project root
+  context: path.resolve(__dirname, 'src'),
 
-var envIsProd = process.env.NODE_ENV === 'prod';
-var cssConfig = envIsProd ? cssConfigEnvironments['prod'] : cssConfigEnvironments['dev'];
-
-module.exports = {
   entry: {
-    app: ['./src/app.js']
+    // relative path declaration
+    app: './index.js'
   },
+
   output: {
-    path: path.resolve(__dirname, folderDistribute),
-    filename: '[name].bundle.js'
+    // absolute path declaration
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'bundle.[hash].js'
   },
+
   module: {
     rules: [
+      // babel-loader with 'env' preset
       {
-        // Converts sass to css
-        test: /\.(sass|scss)$/,
-        use: cssConfig
+        test: /\.js$/,
+        include: /src/,
+        exclude: /node_modules/,
+        use: { loader: 'babel-loader', options: { presets: ['env'] } }
       },
+      // html-loader
+      { test: /\.html$/, use: ['html-loader'] },
+      // sass-loader with sourceMap activated
       {
-        test: /\.(jpe?g|png|gif|svg)$/i,
-        loaders: [
-          'file-loader?name=images/[name].[ext]', // See https://github.com/webpack-contrib/file-loader
-          'image-webpack-loader?bypassOnDebug' // See https://github.com/tcoopman/image-webpack-loader
-        ]
-      }
+        test: /\.scss$/,
+        include: [path.resolve(__dirname, 'src', 'assets', 'scss')],
+        use: extractPlugin.extract({
+          use: [
+            {
+              loader: 'css-loader',
+              options: {
+                sourceMap: true
+              }
+            },
+            {
+              loader: 'sass-loader',
+              options: {
+                sourceMap: true
+              }
+            }
+          ],
+          fallback: 'style-loader'
+        })
+      },
+      // file-loader(for images)
+      {
+        test: /\.(jpg|png|gif|svg)$/,
+        use: [{ loader: 'file-loader', options: { name: '[name].[ext]', outputPath: './assets/images/' } }]
+      },
+      // file-loader(for fonts)
+      { test: /\.(woff|woff2|eot|ttf|otf)$/, use: ['file-loader'] }
     ]
   },
-  devServer: {
-    contentBase: path.join(__dirname, folderDistribute), // Configure development server
-    compress: true,
-    port: 3000,
-    https: useSSL,
-    stats: 'errors-only',
-    hot: true,
-    open: false,
-    openPage: ''
-  },
+
   plugins: [
-    new CleanWebpackPlugin(folderDistribute, {
-      dry: !envIsProd
-    }),
+    // cleaning up only 'dist' folder
+    new CleanWebpackPlugin(['dist']),
     new HtmlWebpackPlugin({
-      // Builds .html, see https://github.com/jantimon/html-webpack-plugin
-      title: 'Hello World from HtmlWebpackPlugin',
-      minify: {
-        collapseWhitespace: switchMinify
-      },
-      hash: true,
-      template: './src/content.html'
+      template: 'content.html'
     }),
-    new FaviconsWebpackPlugin({
-      logo: './src/images/logo.png',
-      prefix: 'images/favicons/icons-[hash]/',
-      emitStats: false,
-      persistentCache: false,
-      background: '#fff',
-      title: 'Bulma App',
-      icons: {
-        favicons: true,
-        firefox: false,
-        android: false,
-        appleIcon: false,
-        appleStartup: false,
-        opengraph: false,
-        twitter: false,
-        yandex: false,
-        windows: false,
-        coast: false
-      }
-    }),
-    new ExtractTextPlugin({
-      // Builds .css, see https://github.com/webpack-contrib/extract-text-webpack-plugin
-      filename: '[name].css',
-      allChunks: true,
-      disable: !envIsProd
-    }),
-    new webpack.HotModuleReplacementPlugin(), // Enable HMR, see https://webpack.js.org/guides/hot-module-replacement/
-    new webpack.NamedModulesPlugin(), // See https://webpack.js.org/plugins/named-modules-plugin/
-    new PurifyCSSPlugin({
-      // Give paths to parse for rules. These should be absolute!
-      paths: glob.sync(path.join(__dirname, 'src/*.html')),
-      minimize: envIsProd,
-      purifyOptions: {
-        info: true,
-        whitelist: ['*:not*']
-      }
-    })
-  ]
+    // extract-text-webpack-plugin instance
+    extractPlugin
+  ],
+
+  devServer: {
+    // static files served from here
+    contentBase: path.resolve(__dirname, './dist/assets/images'),
+    compress: true,
+    // open app in localhost:2000
+    port: 3000,
+    stats: 'errors-only',
+    open: false
+  },
+
+  devtool: 'inline-source-map'
 };
+
+module.exports = config;
